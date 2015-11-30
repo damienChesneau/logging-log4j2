@@ -19,6 +19,7 @@ package org.apache.logging.log4j.core.pattern;
 import java.util.List;
 
 import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.plugins.Plugin;
 import org.apache.logging.log4j.core.layout.PatternLayout;
@@ -70,7 +71,7 @@ public final class EqualsReplacementConverter extends LogEventPatternConverter {
 
     /**
      * Construct the converter.
-     * 
+     *
      * @param formatters
      *            The PatternFormatters to generate the text to manipulate.
      * @param testString
@@ -96,6 +97,38 @@ public final class EqualsReplacementConverter extends LogEventPatternConverter {
             formatter.format(event, buf);
         }
         final String string = buf.toString();
-        toAppendTo.append(testString.equals(string) ? substitution : string);
+
+        // if pattern equals test append substitution
+        if (testString.equals(string)) {
+            final String substitutionString = parseSubstitution(event);
+            toAppendTo.append(substitutionString);
+        }
+        // if pattern equals not test append pattern
+        else {
+            toAppendTo.append(string);
+        }
+    }
+
+    /**
+     * Returns the parsed substitution test.
+     *
+     * @param event the current log event
+     * @return the parsed substitution test
+     */
+    protected String parseSubstitution(final LogEvent event) {
+        StringBuilder substitutionBuffer = new StringBuilder();
+        // check if substitution needs to be parsed
+        if (substitution.contains("%")) {
+            // parse substitution pattern
+            final Configuration config = LoggerContext.getContext().getConfiguration();
+            final List<PatternFormatter> substitutionFormatters = PatternLayout.createPatternParser(config).parse(
+                substitution);
+            for (final PatternFormatter formatter : substitutionFormatters) {
+                formatter.format(event, substitutionBuffer);
+            }
+        } else {
+            substitutionBuffer.append(substitution);
+        }
+        return substitutionBuffer.toString();
     }
 }
